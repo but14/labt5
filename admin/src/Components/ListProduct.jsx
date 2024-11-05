@@ -1,30 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { BsTrash } from "react-icons/bs";
+import { BsTrash, BsPencil } from "react-icons/bs";
+import { useNavigate } from 'react-router-dom';
 
 const ListProduct = () => {
     const [allProduct, setAllProduct] = useState([]);
+    const navigate = useNavigate();
 
     const fetchInfo = async () => {
-        const res = await fetch('http://localhost:4000/allproducts');
-        const data = await res.json();
-        setAllProduct(data);
+        try {
+            const res = await fetch('http://localhost:4000/allproducts');
+            if (!res.ok) {
+                throw new Error('Failed to fetch products');
+            }
+            const data = await res.json();
+            setAllProduct(data);
+        } catch (error) {
+            console.error(error);
+            // You can also add toast notifications here for user feedback
+        }
     }
 
     useEffect(() => {
         fetchInfo();
     }, [])
 
-
     const remove_product = async (id) => {
-        await fetch('http://localhost:4000/removeproduct', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body:JSON.stringify({id:id})
-        })
-        await fetchInfo();
+        try {
+            await fetch('http://localhost:4000/removeproduct', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id })
+            });
+            fetchInfo(); // Refresh the product list after deletion
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    const edit_product = (product) => {
+        // Navigate to the update product page with the product ID
+        navigate(`/updateproduct/${product.id}`); // Use the product ID directly in the URL
     }
 
     return (
@@ -39,12 +57,12 @@ const ListProduct = () => {
                             <th className='p-2'>Old Price</th>
                             <th className='p-2'>New Price</th>
                             <th className='p-2'>Category</th>
-                            <th className='p-2'>Remove</th>
+                            <th className='p-2'>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {allProduct.map((product, i) => (
-                            <tr className='border-b border-slate-900/20 text-gray-20 p-6 medium-14' key={i}>
+                        {allProduct.map((product) => (
+                            <tr className='border-b border-slate-900/20 text-gray-20 p-6 medium-14' key={product.id}>
                                 <td className='flexStart sm:flexCenter'>
                                     <img src={product.image} alt={product.name} style={{ width: '50px', height: '50px' }} className='rounded-lg ring-1 ring-stone-900/5 my-1' />
                                 </td>
@@ -52,13 +70,15 @@ const ListProduct = () => {
                                 <td>${product.old_price}</td>
                                 <td>${product.new_price}</td>
                                 <td>{product.category}</td>
-                                <td>
-                                    <div className='bold-22 pl-6 sm:pl-12'>
-                                        <BsTrash
-                                            onClick={() => remove_product(product.id)}
-                                            className='text-gray-500 text-xl cursor-pointer'
-                                        />
-                                    </div>
+                                <td className='flex justify-center items-center space-x-4'>
+                                    <BsPencil
+                                        onClick={() => edit_product(product)} // Pass the product object
+                                        className='text-gray-500 text-xl cursor-pointer'
+                                    />
+                                    <BsTrash
+                                        onClick={() => remove_product(product.id)}
+                                        className='text-gray-500 text-xl cursor-pointer'
+                                    />
                                 </td>
                             </tr>
                         ))}
@@ -66,7 +86,7 @@ const ListProduct = () => {
                 </table>
             </div>
         </div>
-    )
+    );
 }
 
 export default ListProduct;

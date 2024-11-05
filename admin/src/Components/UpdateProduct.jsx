@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MdAdd } from "react-icons/md";
 import fileUpload from '../assets/upload.png';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const AddProduct = () => {
+const UpdateProduct = ({ productId }) => {
     const [image, setImage] = useState(null);
     const [productDetails, setProductDetails] = useState({
         name: '',
@@ -12,6 +12,25 @@ const AddProduct = () => {
         new_price: '',
         old_price: ''
     });
+
+    useEffect(() => {
+        const fetchProductDetails = async () => {
+            const res = await fetch(`http://localhost:4000/product/${productId}`);
+            const data = await res.json();
+            if (data.success) {
+                setProductDetails({
+                    name: data.product.name,
+                    category: data.product.category,
+                    new_price: data.product.new_price,
+                    old_price: data.product.old_price
+                });
+            } else {
+                toast.error("Failed to fetch product details.");
+            }
+        };
+
+        fetchProductDetails();
+    }, [productId]);
 
     const imageHandler = (e) => {
         setImage(e.target.files[0]);
@@ -21,51 +40,56 @@ const AddProduct = () => {
         setProductDetails({ ...productDetails, [e.target.name]: e.target.value });
     };
 
-    const addProduct = async () => {
-        if (!image) {
-            toast.error("Please upload an image!");
-            return;
+    const updateProduct = async () => {
+        // Only upload a new image if one is selected
+        let imageUrl = '';
+        if (image) {
+            let formData = new FormData();
+            formData.append('product', image);
+
+            // Upload the new image
+            const uploadResponse = await fetch('http://localhost:4000/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const uploadData = await uploadResponse.json();
+            if (!uploadData.success) {
+                toast.error("Image upload failed!");
+                return;
+            }
+            imageUrl = uploadData.image_url; // Store the uploaded image URL
+        } else {
+            // If no new image, keep the current image URL
+            const res = await fetch(`http://localhost:4000/product/${productId}`);
+            const data = await res.json();
+            imageUrl = data.product.image; // Assuming the image URL is stored in the product data
         }
 
-        let formData = new FormData();
-        formData.append('product', image);
-
-        // Upload the image
-        const uploadResponse = await fetch('http://localhost:4000/upload', {
-            method: 'POST',
-            body: formData,
-        });
-
-        const uploadData = await uploadResponse.json();
-        if (!uploadData.success) {
-            toast.error("Image upload failed!");
-            return;
-        }
-
-        // Prepare product data with the uploaded image URL
-        const product = {
+        // Prepare updated product data with the uploaded image URL
+        const updatedProduct = {
             ...productDetails,
-            image: uploadData.image_url,
+            image: imageUrl,
         };
 
-        // Add the product
-        const addResponse = await fetch('http://localhost:4000/addproduct', {
-            method: 'POST',
+        // Update the product
+        const updateResponse = await fetch(`http://localhost:4000/updateproduct/${productId}`, {
+            method: 'PUT',
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(product),
+            body: JSON.stringify(updatedProduct),
         });
 
-        const addData = await addResponse.json();
-        if (addData.success) {
-            toast.success('Product Added Successfully!');
+        const updateData = await updateResponse.json();
+        if (updateData.success) {
+            toast.success('Product Updated Successfully!');
             // Reset the form
             setProductDetails({ name: '', category: 'men', new_price: '', old_price: '' });
             setImage(null);
         } else {
-            toast.error('Failed to Add Product!');
+            toast.error('Failed to Update Product!');
         }
     };
 
@@ -139,11 +163,11 @@ const AddProduct = () => {
                 />
             </div>
 
-            <button onClick={addProduct} className='btn_dark_rounded mt-6 flexCenter gap-x-1'>
-                <MdAdd /> Add Product
+            <button onClick={updateProduct} className='btn_dark_rounded mt-6 flexCenter gap-x-1'>
+                <MdAdd /> Update Product
             </button>
         </div>
     );
 };
 
-export default AddProduct;
+export default UpdateProduct;
